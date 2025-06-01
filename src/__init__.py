@@ -2,10 +2,10 @@
 SVM Package Initialization
 """
 
-from .kernel_svm import KernelSVM
-from .linear_svm import LinearSVM
-from .svr import SupportVectorRegressor
-from .kernels import *
+from .svm.kernel_svm import KernelSVM
+from .svm.linear_svm import LinearSVM
+from .svm.svr import SupportVectorRegressor
+from .svm.kernels import *
 
 __all__ = [
     'KernelSVM',

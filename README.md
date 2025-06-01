@@ -159,7 +159,7 @@ SVM-for-classification-and-regression/
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/your-username/SVM-for-classification-and-regression.git
+git clone https://github.com/MDHaggai/ssification-and-regression.git
 cd SVM-for-classification-and-regression
 ```
 

@@ -433,4 +433,133 @@ class KernelSVM:
         self.n_support_ = np.array([
             np.sum(y_mapped[sv_mask] == -1),
             np.sum(y_mapped[sv_mask] == 1)
-        ])\n        \n        if self.verbose:\n            print(f\"\\nTraining completed in {iteration} iterations ({training_time:.2f}s)\")\n            print(f\"Support vectors: {len(self.support_vectors_)}/{n_samples} \"\n                  f\"({100*len(self.support_vectors_)/n_samples:.1f}%)\")\n            print(f\"Class distribution: {self.n_support_}\")\n            print(f\"Final objective: {self._objective_function(alpha, K, y_mapped):.6f}\")\n        \n        return self\n    \n    def decision_function(self, X: np.ndarray) -> np.ndarray:\n        \"\"\"\n        Compute decision function values\n        \n        f(x) = ∑αiyiK(xi,x) + b\n        \n        Args:\n            X: Input data (n_samples, n_features)\n            \n        Returns:\n            Decision function values (n_samples,)\n        \"\"\"\n        if self.alpha is None:\n            raise ValueError(\"Model not fitted yet\")\n        \n        X = np.asarray(X, dtype=np.float64)\n        \n        # Compute kernel matrix between test and support vectors\n        K_test = self._kernel_func(self.support_vectors_, X)\n        \n        # Decision function: ∑αiyiK(xi,x) + b\n        support_labels_mapped = np.where(self.support_labels_ == self.classes_[0], -1, 1)\n        decision_values = np.dot((self.support_alphas_ * support_labels_mapped), K_test) + self.b\n        \n        return decision_values\n    \n    def predict(self, X: np.ndarray) -> np.ndarray:\n        \"\"\"\n        Predict class labels\n        \n        Args:\n            X: Input data (n_samples, n_features)\n            \n        Returns:\n            Predicted labels (n_samples,)\n        \"\"\"\n        decision_values = self.decision_function(X)\n        predictions = np.where(decision_values >= 0, 1, -1)\n        \n        # Map back to original labels\n        return np.where(predictions == -1, self.classes_[0], self.classes_[1])\n    \n    def predict_proba(self, X: np.ndarray) -> np.ndarray:\n        \"\"\"\n        Predict class probabilities using Platt scaling\n        \n        Note: This is a simplified probability estimate.\n        For proper probability calibration, use CalibratedClassifierCV.\n        \n        Args:\n            X: Input data\n            \n        Returns:\n            Class probabilities (n_samples, 2)\n        \"\"\"\n        decision_values = self.decision_function(X)\n        \n        # Simple sigmoid mapping (not properly calibrated)\n        probabilities = 1 / (1 + np.exp(-decision_values))\n        \n        # Return probabilities for both classes\n        proba_class1 = probabilities\n        proba_class0 = 1 - probabilities\n        \n        return np.column_stack([proba_class0, proba_class1])\n    \n    def score(self, X: np.ndarray, y: np.ndarray) -> float:\n        \"\"\"\n        Compute accuracy score\n        \n        Args:\n            X: Test data\n            y: True labels\n            \n        Returns:\n            Accuracy score\n        \"\"\"\n        predictions = self.predict(X)\n        return np.mean(predictions == y)\n    \n    def get_params(self, deep: bool = True) -> dict:\n        \"\"\"\n        Get parameters for this estimator\n        \n        Args:\n            deep: If True, return parameters for this estimator and\n                  contained subobjects\n                  \n        Returns:\n            Parameter names mapped to their values\n        \"\"\"\n        return {\n            'kernel': self.kernel,\n            'C': self.C,\n            'gamma': self.gamma,\n            'degree': self.degree,\n            'coef0': self.coef0,\n            'tol': self.tol,\n            'max_iter': self.max_iter,\n            'random_state': self.random_state,\n            'verbose': self.verbose\n        }\n    \n    def set_params(self, **params) -> 'KernelSVM':\n        \"\"\"\n        Set the parameters of this estimator\n        \n        Args:\n            **params: Parameter names and values\n            \n        Returns:\n            self\n        \"\"\"\n        for param, value in params.items():\n            if hasattr(self, param):\n                setattr(self, param, value)\n            else:\n                raise ValueError(f\"Invalid parameter: {param}\")\n        return self"
+        ])
+        
+        if self.verbose:
+            print(f"\nTraining completed in {iteration} iterations ({training_time:.2f}s)")
+            print(f"Support vectors: {len(self.support_vectors_)}/{n_samples} "
+                  f"({100*len(self.support_vectors_)/n_samples:.1f}%)")
+            print(f"Class distribution: {self.n_support_}")
+            print(f"Final objective: {self._objective_function(alpha, K, y_mapped):.6f}")
+        
+        return self
+    
+    def decision_function(self, X: np.ndarray) -> np.ndarray:
+        """
+        Compute decision function values
+        
+        f(x) = ∑αiyiK(xi,x) + b
+        
+        Args:
+            X: Input data (n_samples, n_features)
+            
+        Returns:
+            Decision function values (n_samples,)
+        """
+        if self.alpha is None:
+            raise ValueError("Model not fitted yet")
+        
+        X = np.asarray(X, dtype=np.float64)
+        
+        # Compute kernel matrix between test and support vectors
+        K_test = self._kernel_func(self.support_vectors_, X)
+        
+        # Decision function: ∑αiyiK(xi,x) + b
+        support_labels_mapped = np.where(self.support_labels_ == self.classes_[0], -1, 1)
+        decision_values = np.dot((self.support_alphas_ * support_labels_mapped), K_test) + self.b
+        
+        return decision_values
+    
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """
+        Predict class labels
+        
+        Args:
+            X: Input data (n_samples, n_features)
+            
+        Returns:
+            Predicted labels (n_samples,)
+        """
+        decision_values = self.decision_function(X)
+        predictions = np.where(decision_values >= 0, 1, -1)
+        
+        # Map back to original labels
+        return np.where(predictions == -1, self.classes_[0], self.classes_[1])
+    
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+        """
+        Predict class probabilities using Platt scaling
+        
+        Note: This is a simplified probability estimate.
+        For proper probability calibration, use CalibratedClassifierCV.
+        
+        Args:
+            X: Input data
+            
+        Returns:
+            Class probabilities (n_samples, 2)
+        """
+        decision_values = self.decision_function(X)
+        
+        # Simple sigmoid mapping (not properly calibrated)
+        probabilities = 1 / (1 + np.exp(-decision_values))
+        
+        # Return probabilities for both classes
+        proba_class1 = probabilities
+        proba_class0 = 1 - probabilities
+        
+        return np.column_stack([proba_class0, proba_class1])
+    
+    def score(self, X: np.ndarray, y: np.ndarray) -> float:
+        """
+        Compute accuracy score
+        
+        Args:
+            X: Test data
+            y: True labels
+            
+        Returns:
+            Accuracy score
+        """
+        predictions = self.predict(X)
+        return np.mean(predictions == y)
+    
+    def get_params(self, deep: bool = True) -> dict:
+        """
+        Get parameters for this estimator
+        
+        Args:
+            deep: If True, return parameters for this estimator and
+                  contained subobjects
+                  
+        Returns:
+            Parameter names mapped to their values
+        """
+        return {
+            'kernel': self.kernel,
+            'C': self.C,
+            'gamma': self.gamma,
+            'degree': self.degree,
+            'coef0': self.coef0,
+            'tol': self.tol,
+            'max_iter': self.max_iter,
+            'random_state': self.random_state,
+            'verbose': self.verbose
+        }
+    
+    def set_params(self, **params) -> 'KernelSVM':
+        """
+        Set the parameters of this estimator
+        
+        Args:
+            **params: Parameter names and values
+            
+        Returns:
+            self
+        """
+        for param, value in params.items():
+            if hasattr(self, param):
+                setattr(self, param, value)
+            else:
+                raise ValueError(f"Invalid parameter: {param}")
+        return self

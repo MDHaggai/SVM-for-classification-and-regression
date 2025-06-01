@@ -245,4 +245,236 @@ class SupportVectorRegressor:
         L_star_i = max(0, alpha_star[i] - self.C)
         H_star_i = min(self.C, alpha_star[i])
         
-        # Update alpha_i (simplified update rule)\n        delta_alpha_i = (errors[i] - errors[j]) / eta\n        alpha[i] = np.clip(alpha[i] + delta_alpha_i, L_i, H_i)\n        \n        # Update alpha_star_i based on complementarity\n        if errors[i] > self.epsilon:\n            alpha_star[i] = 0\n        elif errors[i] < -self.epsilon:\n            alpha[i] = 0\n        \n        # Check for sufficient change\n        if (abs(alpha[i] - alpha_old[i]) < self.tol and \n            abs(alpha_star[i] - alpha_star_old[i]) < self.tol):\n            return alpha, alpha_star, b, False\n        \n        # Update bias (simplified)\n        support_mask = (alpha > self.tol) | (alpha_star > self.tol)\n        if np.any(support_mask):\n            # Use support vectors to estimate bias\n            predictions = np.dot(K, alpha - alpha_star)\n            residuals = y - predictions\n            b = np.mean(residuals[support_mask])\n        \n        return alpha, alpha_star, b, True\n    \n    def _compute_errors_regression(self, alpha: np.ndarray, alpha_star: np.ndarray,\n                                 y: np.ndarray, K: np.ndarray, b: float) -> np.ndarray:\n        \"\"\"\n        Compute prediction errors for regression\n        \n        Args:\n            alpha: Alpha multipliers\n            alpha_star: Alpha* multipliers\n            y: True targets\n            K: Gram matrix\n            b: Bias\n            \n        Returns:\n            Error array\n        \"\"\"\n        predictions = np.dot(K, alpha - alpha_star) + b\n        return predictions - y\n    \n    def fit(self, X: np.ndarray, y: np.ndarray) -> 'SupportVectorRegressor':\n        \"\"\"\n        Train the Support Vector Regressor\n        \n        Args:\n            X: Training data (n_samples, n_features)\n            y: Training targets (n_samples,)\n            \n        Returns:\n            self\n        \"\"\"\n        # Input validation\n        X = np.asarray(X, dtype=np.float64)\n        y = np.asarray(y, dtype=np.float64)\n        \n        if X.ndim != 2:\n            raise ValueError(\"X must be 2D array\")\n        if y.ndim != 1:\n            raise ValueError(\"y must be 1D array\")\n        if X.shape[0] != y.shape[0]:\n            raise ValueError(\"X and y must have same number of samples\")\n        \n        # Store training data\n        self._X_train = X.copy()\n        self._y_train = y.copy()\n        \n        n_samples, n_features = X.shape\n        \n        # Setup kernel function\n        self._setup_kernel(X)\n        \n        # Initialize optimization variables\n        alpha = np.zeros(n_samples)\n        alpha_star = np.zeros(n_samples)\n        b = 0.0\n        \n        # Compute Gram matrix\n        if self.verbose:\n            print(\"Computing Gram matrix for SVR...\")\n        K = self._compute_gram_matrix(X)\n        \n        # SMO main loop for regression\n        if self.verbose:\n            print(\"Starting SMO optimization for SVR...\")\n        \n        start_time = time.time()\n        num_changed = 0\n        examine_all = True\n        iteration = 0\n        \n        while (num_changed > 0 or examine_all) and iteration < self.max_iter:\n            num_changed = 0\n            \n            # Compute errors\n            errors = self._compute_errors_regression(alpha, alpha_star, y, K, b)\n            \n            if examine_all:\n                # Examine all samples\n                for i in range(n_samples):\n                    if self._violates_kkt_regression(alpha[i], alpha_star[i], errors[i]):\n                        # Simple second choice\n                        j = (i + 1) % n_samples\n                        alpha, alpha_star, b, changed = self._smo_step_regression(\n                            i, j, alpha, alpha_star, y, K, errors, b)\n                        if changed:\n                            num_changed += 1\n            else:\n                # Examine support vectors\n                sv_mask = (alpha > self.tol) | (alpha_star > self.tol)\n                for i in np.where(sv_mask)[0]:\n                    if self._violates_kkt_regression(alpha[i], alpha_star[i], errors[i]):\n                        j = (i + 1) % n_samples\n                        alpha, alpha_star, b, changed = self._smo_step_regression(\n                            i, j, alpha, alpha_star, y, K, errors, b)\n                        if changed:\n                            num_changed += 1\n            \n            if examine_all:\n                examine_all = False\n            elif num_changed == 0:\n                examine_all = True\n            \n            iteration += 1\n            \n            # Progress reporting\n            if self.verbose and iteration % 100 == 0:\n                obj_val = self._objective_function(alpha, alpha_star, K, y)\n                n_sv = np.sum((alpha > self.tol) | (alpha_star > self.tol))\n                print(f\"Iter {iteration:4d}: Obj={obj_val:8.4f}, SVs={n_sv:4d}/{n_samples}\")\n        \n        training_time = time.time() - start_time\n        \n        # Store results\n        self.alpha = alpha\n        self.alpha_star = alpha_star\n        self.b = b\n        \n        # Extract support vectors\n        sv_mask = (alpha > self.tol) | (alpha_star > self.tol)\n        self.support_vectors_ = X[sv_mask]\n        self.support_targets_ = y[sv_mask]\n        self.support_alphas_ = alpha[sv_mask]\n        self.support_alphas_star_ = alpha_star[sv_mask]\n        \n        if self.verbose:\n            print(f\"\\nSVR training completed in {iteration} iterations ({training_time:.2f}s)\")\n            print(f\"Support vectors: {len(self.support_vectors_)}/{n_samples} \"\n                  f\"({100*len(self.support_vectors_)/n_samples:.1f}%)\")\n            print(f\"Final objective: {self._objective_function(alpha, alpha_star, K, y):.6f}\")\n        \n        return self\n    \n    def predict(self, X: np.ndarray) -> np.ndarray:\n        \"\"\"\n        Predict using the trained SVR\n        \n        f(x) = ∑(αi - αi*)K(xi,x) + b\n        \n        Args:\n            X: Input data (n_samples, n_features)\n            \n        Returns:\n            Predicted values (n_samples,)\n        \"\"\"\n        if self.alpha is None:\n            raise ValueError(\"Model not fitted yet\")\n        \n        X = np.asarray(X, dtype=np.float64)\n        \n        # Compute kernel matrix between test and support vectors\n        K_test = self._kernel_func(self.support_vectors_, X)\n        \n        # Prediction: ∑(αi - αi*)K(xi,x) + b\n        alpha_diff = self.support_alphas_ - self.support_alphas_star_\n        predictions = np.dot(alpha_diff, K_test) + self.b\n        \n        return predictions\n    \n    def score(self, X: np.ndarray, y: np.ndarray) -> float:\n        \"\"\"\n        Compute coefficient of determination R² score\n        \n        Args:\n            X: Test data\n            y: True targets\n            \n        Returns:\n            R² score\n        \"\"\"\n        predictions = self.predict(X)\n        \n        # R² = 1 - SS_res / SS_tot\n        ss_res = np.sum((y - predictions) ** 2)\n        ss_tot = np.sum((y - np.mean(y)) ** 2)\n        \n        return 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0\n    \n    def get_params(self, deep: bool = True) -> dict:\n        \"\"\"\n        Get parameters for this estimator\n        \n        Returns:\n            Parameter dictionary\n        \"\"\"\n        return {\n            'kernel': self.kernel,\n            'C': self.C,\n            'epsilon': self.epsilon,\n            'gamma': self.gamma,\n            'degree': self.degree,\n            'coef0': self.coef0,\n            'tol': self.tol,\n            'max_iter': self.max_iter,\n            'random_state': self.random_state,\n            'verbose': self.verbose\n        }\n    \n    def set_params(self, **params) -> 'SupportVectorRegressor':\n        \"\"\"\n        Set the parameters of this estimator\n        \n        Returns:\n            self\n        \"\"\"\n        for param, value in params.items():\n            if hasattr(self, param):\n                setattr(self, param, value)\n            else:\n                raise ValueError(f\"Invalid parameter: {param}\")\n        return self"
+        # Update alpha_i (simplified update rule)
+        delta_alpha_i = (errors[i] - errors[j]) / eta
+        alpha[i] = np.clip(alpha[i] + delta_alpha_i, L_i, H_i)
+        
+        # Update alpha_star_i based on complementarity
+        if errors[i] > self.epsilon:
+            alpha_star[i] = 0
+        elif errors[i] < -self.epsilon:
+            alpha[i] = 0
+        
+        # Check for sufficient change
+        if (abs(alpha[i] - alpha_old[i]) < self.tol and 
+            abs(alpha_star[i] - alpha_star_old[i]) < self.tol):
+            return alpha, alpha_star, b, False
+        
+        # Update bias (simplified)
+        support_mask = (alpha > self.tol) | (alpha_star > self.tol)
+        if np.any(support_mask):
+            # Use support vectors to estimate bias
+            predictions = np.dot(K, alpha - alpha_star)
+            residuals = y - predictions
+            b = np.mean(residuals[support_mask])
+        
+        return alpha, alpha_star, b, True
+    
+    def _compute_errors_regression(self, alpha: np.ndarray, alpha_star: np.ndarray,
+                                 y: np.ndarray, K: np.ndarray, b: float) -> np.ndarray:
+        \"\"\"
+        Compute prediction errors for regression
+        
+        Args:
+            alpha: Alpha multipliers
+            alpha_star: Alpha* multipliers
+            y: True targets
+            K: Gram matrix
+            b: Bias
+            
+        Returns:
+            Error array
+        \"\"\"
+        predictions = np.dot(K, alpha - alpha_star) + b
+        return predictions - y
+    
+    def fit(self, X: np.ndarray, y: np.ndarray) -> 'SupportVectorRegressor':
+        \"\"\"
+        Train the Support Vector Regressor
+        
+        Args:
+            X: Training data (n_samples, n_features)
+            y: Training targets (n_samples,)
+            
+        Returns:
+            self
+        \"\"\"
+        # Input validation
+        X = np.asarray(X, dtype=np.float64)
+        y = np.asarray(y, dtype=np.float64)
+        
+        if X.ndim != 2:
+            raise ValueError(\"X must be 2D array\")
+        if y.ndim != 1:
+            raise ValueError(\"y must be 1D array\")
+        if X.shape[0] != y.shape[0]:
+            raise ValueError(\"X and y must have same number of samples\")
+        
+        # Store training data
+        self._X_train = X.copy()
+        self._y_train = y.copy()
+        
+        n_samples, n_features = X.shape
+        
+        # Setup kernel function
+        self._setup_kernel(X)
+        
+        # Initialize optimization variables
+        alpha = np.zeros(n_samples)
+        alpha_star = np.zeros(n_samples)
+        b = 0.0
+        
+        # Compute Gram matrix
+        if self.verbose:
+            print(\"Computing Gram matrix for SVR...\")
+        K = self._compute_gram_matrix(X)
+        
+        # SMO main loop for regression
+        if self.verbose:
+            print(\"Starting SMO optimization for SVR...\")
+        
+        start_time = time.time()
+        num_changed = 0
+        examine_all = True
+        iteration = 0
+        
+        while (num_changed > 0 or examine_all) and iteration < self.max_iter:
+            num_changed = 0
+            
+            # Compute errors
+            errors = self._compute_errors_regression(alpha, alpha_star, y, K, b)
+            
+            if examine_all:
+                # Examine all samples
+                for i in range(n_samples):
+                    if self._violates_kkt_regression(alpha[i], alpha_star[i], errors[i]):
+                        # Simple second choice
+                        j = (i + 1) % n_samples
+                        alpha, alpha_star, b, changed = self._smo_step_regression(
+                            i, j, alpha, alpha_star, y, K, errors, b)
+                        if changed:
+                            num_changed += 1
+            else:
+                # Examine support vectors
+                sv_mask = (alpha > self.tol) | (alpha_star > self.tol)
+                for i in np.where(sv_mask)[0]:
+                    if self._violates_kkt_regression(alpha[i], alpha_star[i], errors[i]):
+                        j = (i + 1) % n_samples
+                        alpha, alpha_star, b, changed = self._smo_step_regression(
+                            i, j, alpha, alpha_star, y, K, errors, b)
+                        if changed:
+                            num_changed += 1
+            
+            if examine_all:
+                examine_all = False
+            elif num_changed == 0:
+                examine_all = True
+            
+            iteration += 1
+            
+            # Progress reporting
+            if self.verbose and iteration % 100 == 0:
+                obj_val = self._objective_function(alpha, alpha_star, K, y)
+                n_sv = np.sum((alpha > self.tol) | (alpha_star > self.tol))
+                print(f\"Iter {iteration:4d}: Obj={obj_val:8.4f}, SVs={n_sv:4d}/{n_samples}\")
+        
+        training_time = time.time() - start_time
+        
+        # Store results
+        self.alpha = alpha
+        self.alpha_star = alpha_star
+        self.b = b
+        
+        # Extract support vectors
+        sv_mask = (alpha > self.tol) | (alpha_star > self.tol)
+        self.support_vectors_ = X[sv_mask]
+        self.support_targets_ = y[sv_mask]
+        self.support_alphas_ = alpha[sv_mask]
+        self.support_alphas_star_ = alpha_star[sv_mask]
+        
+        if self.verbose:
+            print(f\"\\nSVR training completed in {iteration} iterations ({training_time:.2f}s)\")
+            print(f\"Support vectors: {len(self.support_vectors_)}/{n_samples} \"
+                  f\"({100*len(self.support_vectors_)/n_samples:.1f}%)\")
+            print(f\"Final objective: {self._objective_function(alpha, alpha_star, K, y):.6f}\")
+        
+        return self
+    
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        \"\"\"
+        Predict using the trained SVR
+        
+        f(x) = ∑(αi - αi*)K(xi,x) + b
+        
+        Args:
+            X: Input data (n_samples, n_features)
+            
+        Returns:
+            Predicted values (n_samples,)
+        \"\"\"
+        if self.alpha is None:
+            raise ValueError(\"Model not fitted yet\")
+        
+        X = np.asarray(X, dtype=np.float64)
+        
+        # Compute kernel matrix between test and support vectors
+        K_test = self._kernel_func(self.support_vectors_, X)
+        
+        # Prediction: ∑(αi - αi*)K(xi,x) + b
+        alpha_diff = self.support_alphas_ - self.support_alphas_star_
+        predictions = np.dot(alpha_diff, K_test) + self.b
+        
+        return predictions
+    
+    def score(self, X: np.ndarray, y: np.ndarray) -> float:
+        \"\"\"
+        Compute coefficient of determination R² score
+        
+        Args:
+            X: Test data
+            y: True targets
+            
+        Returns:
+            R² score
+        \"\"\"
+        predictions = self.predict(X)
+        
+        # R² = 1 - SS_res / SS_tot
+        ss_res = np.sum((y - predictions) ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        
+        return 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
+    
+    def get_params(self, deep: bool = True) -> dict:
+        \"\"\"
+        Get parameters for this estimator
+        
+        Returns:
+            Parameter dictionary
+        \"\"\"
+        return {
+            'kernel': self.kernel,
+            'C': self.C,
+            'epsilon': self.epsilon,
+            'gamma': self.gamma,
+            'degree': self.degree,
+            'coef0': self.coef0,
+            'tol': self.tol,
+            'max_iter': self.max_iter,
+            'random_state': self.random_state,
+            'verbose': self.verbose
+        }
+    
+    def set_params(self, **params) -> 'SupportVectorRegressor':
+        \"\"\"
+        Set the parameters of this estimator
+        
+        Returns:
+            self
+        \"\"\"
+        for param, value in params.items():
+            if hasattr(self, param):
+                setattr(self, param, value)
+            else:
+                raise ValueError(f\"Invalid parameter: {param}\")
+        return self"
