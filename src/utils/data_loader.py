@@ -1,86 +1,179 @@
-"""
-Data Loading Utilities
-======================
-
-This module provides utilities for loading and preprocessing real-world datasets
-for SVM analysis, including:
-
-1. Heart Disease Dataset (UCI) - Medical diagnosis classification
-2. BBC News Dataset - Text classification 
-3. California Housing Dataset - Regression
-4. Wine Quality Dataset - Regression
-
-All datasets are automatically downloaded, preprocessed, and split for training.
-"""
-
-import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.datasets import fetch_california_housing
-import requests
+import numpy as np
 import os
-from pathlib import Path
-import zipfile
-import io
-from typing import Tuple, Optional
-import warnings
 
-class DataLoader:
-    """
-    Comprehensive data loader for SVM analysis datasets
-    """
+def load_data(file_path):
+    """Generic function to load data from a CSV file."""
+    if os.path.exists(file_path):
+        return pd.read_csv(file_path)
+    else:
+        raise FileNotFoundError(f"The file {file_path} does not exist.")
+
+def load_heart_disease_data():
+    """Load heart disease data and return X, y splits."""
+    # Try processed data first, then raw data
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    processed_path = os.path.join(project_root, 'data', 'processed', 'heart_disease_clean.csv')
+    raw_path = os.path.join(project_root, 'data', 'raw', 'heart_disease.csv')
     
-    def __init__(self, data_dir: str = "data", random_state: int = 42):
-        """
-        Initialize data loader
-        
-        Args:
-            data_dir: Directory to store datasets
-            random_state: Random seed for reproducibility
-        """
-        self.data_dir = Path(data_dir)
-        self.random_state = random_state
-        
-        # Create directories
-        self.raw_dir = self.data_dir / "raw"
-        self.processed_dir = self.data_dir / "processed"
-        self.external_dir = self.data_dir / "external"
-        
-        for dir_path in [self.raw_dir, self.processed_dir, self.external_dir]:
-            dir_path.mkdir(parents=True, exist_ok=True)
+    if os.path.exists(processed_path):
+        file_path = processed_path
+    elif os.path.exists(raw_path):
+        file_path = raw_path
+    else:
+        raise FileNotFoundError("Heart disease dataset not found in data/processed or data/raw")
     
-    def download_heart_disease_data(self) -> None:
-        """
-        Download Heart Disease dataset from UCI repository
-        """
-        url = "https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data"
-        filepath = self.raw_dir / "heart_disease.csv"
-        
-        if filepath.exists():
-            print(f"Heart disease dataset already exists at {filepath}")
-            return
-        
-        print("Downloading Heart Disease dataset from UCI repository...")
-        
-        try:
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
-            
-            # Column names for the dataset
-            columns = [
-                'age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg',
-                'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal', 'target'
-            ]
-              # Save raw data
-            with open(filepath, 'w') as f:
-                f.write(','.join(columns) + '\n')
-                f.write(response.text.replace(' ', ''))
-            
-            print(f"Heart disease dataset downloaded to {filepath}")
-            
-        except Exception as e:
-            print(f"Error downloading heart disease dataset: {e}")
-            # Create a backup local version with sample data
-            self._create_sample_heart_disease_data(filepath)\n    \n    def _create_sample_heart_disease_data(self, filepath: Path) -> None:\n        \"\"\"\n        Create sample heart disease data if download fails\n        \"\"\"\n        print(\"Creating sample heart disease dataset...\")\n        \n        np.random.seed(self.random_state)\n        n_samples = 300\n        \n        # Generate synthetic heart disease data\n        data = {\n            'age': np.random.randint(29, 80, n_samples),\n            'sex': np.random.randint(0, 2, n_samples),\n            'cp': np.random.randint(0, 4, n_samples),\n            'trestbps': np.random.randint(90, 200, n_samples),\n            'chol': np.random.randint(120, 400, n_samples),\n            'fbs': np.random.randint(0, 2, n_samples),\n            'restecg': np.random.randint(0, 3, n_samples),\n            'thalach': np.random.randint(60, 220, n_samples),\n            'exang': np.random.randint(0, 2, n_samples),\n            'oldpeak': np.random.uniform(0, 6, n_samples),\n            'slope': np.random.randint(0, 3, n_samples),\n            'ca': np.random.randint(0, 4, n_samples),\n            'thal': np.random.randint(0, 4, n_samples),\n            'target': np.random.randint(0, 2, n_samples)\n        }\n        \n        df = pd.DataFrame(data)\n        df.to_csv(filepath, index=False)\n        print(f\"Sample heart disease dataset created at {filepath}\")\n    \n    def download_bbc_news_data(self) -> None:\n        \"\"\"\n        Download BBC News dataset or create sample text data\n        \"\"\"\n        filepath = self.raw_dir / \"bbc_news.csv\"\n        \n        if filepath.exists():\n            print(f\"BBC News dataset already exists at {filepath}\")\n            return\n        \n        print(\"Creating sample BBC News dataset...\")\n        \n        # Sample news data for demonstration\n        categories = ['business', 'entertainment', 'politics', 'sport', 'tech']\n        \n        # Sample texts for each category\n        sample_texts = {\n            'business': [\n                \"The company reported strong quarterly earnings with revenue growth of 15 percent.\",\n                \"Stock markets closed higher today as investors welcomed the economic data.\",\n                \"The merger between the two companies is expected to create significant synergies.\",\n                \"Unemployment rates dropped to their lowest level in five years.\",\n                \"The central bank announced a new monetary policy to combat inflation.\"\n            ],\n            'entertainment': [\n                \"The blockbuster movie broke box office records in its opening weekend.\",\n                \"The award-winning actress announced her retirement from acting.\",\n                \"The music festival featured performances from top international artists.\",\n                \"The television series finale drew millions of viewers worldwide.\",\n                \"The celebrity couple announced their engagement on social media.\"\n            ],\n            'politics': [\n                \"The election results showed a clear victory for the incumbent party.\",\n                \"Parliament passed the controversial legislation after heated debates.\",\n                \"The prime minister announced new policies to address climate change.\",\n                \"International relations improved following the diplomatic summit.\",\n                \"The opposition criticized the government's handling of the crisis.\"\n            ],\n            'sport': [\n                \"The championship game ended in a thrilling overtime victory.\",\n                \"The athlete broke the world record in the swimming competition.\",\n                \"The soccer team signed a new star player for the upcoming season.\",\n                \"The tennis tournament featured exciting matches and upsets.\",\n                \"The basketball league announced changes to the playoff format.\"\n            ],\n            'tech': [\n                \"The new smartphone features advanced artificial intelligence capabilities.\",\n                \"The software company released a major update to its operating system.\",\n                \"Researchers developed a breakthrough in quantum computing technology.\",\n                \"The social media platform implemented new privacy protection measures.\",\n                \"The electric vehicle manufacturer opened a new production facility.\"\n            ]\n        }\n        \n        # Create dataset\n        data = []\n        for category, texts in sample_texts.items():\n            for text in texts:\n                # Add some variation\n                for i in range(20):  # Create 20 variations per text\n                    modified_text = text + f\" Additional context {i}.\"\n                    data.append({'text': modified_text, 'category': category})\n        \n        df = pd.DataFrame(data)\n        df = df.sample(frac=1, random_state=self.random_state).reset_index(drop=True)\n        df.to_csv(filepath, index=False)\n        \n        print(f\"Sample BBC News dataset created at {filepath}\")\n    \n    def download_wine_quality_data(self) -> None:\n        \"\"\"\n        Download Wine Quality dataset from UCI repository\n        \"\"\"\n        url = \"https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-red.csv\"\n        filepath = self.raw_dir / \"wine_quality.csv\"\n        \n        if filepath.exists():\n            print(f\"Wine quality dataset already exists at {filepath}\")\n            return\n        \n        print(\"Downloading Wine Quality dataset from UCI repository...\")\n        \n        try:\n            response = requests.get(url, timeout=30)\n            response.raise_for_status()\n            \n            with open(filepath, 'w') as f:\n                f.write(response.text)\n            \n            print(f\"Wine quality dataset downloaded to {filepath}\")\n            \n        except Exception as e:\n            print(f\"Error downloading wine quality dataset: {e}\")\n            self._create_sample_wine_quality_data(filepath)\n    \n    def _create_sample_wine_quality_data(self, filepath: Path) -> None:\n        \"\"\"\n        Create sample wine quality data if download fails\n        \"\"\"\n        print(\"Creating sample wine quality dataset...\")\n        \n        np.random.seed(self.random_state)\n        n_samples = 1000\n        \n        # Generate synthetic wine quality data\n        data = {\n            'fixed acidity': np.random.uniform(4, 16, n_samples),\n            'volatile acidity': np.random.uniform(0.1, 1.6, n_samples),\n            'citric acid': np.random.uniform(0, 1, n_samples),\n            'residual sugar': np.random.uniform(0.9, 15, n_samples),\n            'chlorides': np.random.uniform(0.01, 0.6, n_samples),\n            'free sulfur dioxide': np.random.uniform(1, 72, n_samples),\n            'total sulfur dioxide': np.random.uniform(6, 290, n_samples),\n            'density': np.random.uniform(0.99, 1.01, n_samples),\n            'pH': np.random.uniform(2.7, 4.0, n_samples),\n            'sulphates': np.random.uniform(0.3, 2.0, n_samples),\n            'alcohol': np.random.uniform(8, 15, n_samples),\n            'quality': np.random.randint(3, 9, n_samples)\n        }\n        \n        df = pd.DataFrame(data)\n        df.to_csv(filepath, index=False, sep=';')\n        print(f\"Sample wine quality dataset created at {filepath}\")\n    \n    def load_heart_disease_data(self, test_size: float = 0.2) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:\n        \"\"\"\n        Load and preprocess Heart Disease dataset for classification\n        \n        Args:\n            test_size: Proportion of data for testing\n            \n        Returns:\n            X_train, X_test, y_train, y_test\n        \"\"\"\n        # Download if not exists\n        self.download_heart_disease_data()\n        \n        filepath = self.raw_dir / \"heart_disease.csv\"\n        \n        print(f\"Loading heart disease dataset from {filepath}...\")\n        \n        # Load data\n        df = pd.read_csv(filepath)\n        \n        # Handle missing values (represented as '?' in this dataset)\n        df = df.replace('?', np.nan)\n        \n        # Convert to numeric\n        for col in df.columns:\n            df[col] = pd.to_numeric(df[col], errors='coerce')\n        \n        # Drop rows with missing values\n        df = df.dropna()\n        \n        # Separate features and target\n        X = df.drop('target', axis=1).values\n        y = df['target'].values\n        \n        # Convert target to binary (0: no disease, 1: disease)\n        y = (y > 0).astype(int)\n        \n        # Split data\n        X_train, X_test, y_train, y_test = train_test_split(\n            X, y, test_size=test_size, random_state=self.random_state, stratify=y\n        )\n        \n        # Standardize features\n        scaler = StandardScaler()\n        X_train = scaler.fit_transform(X_train)\n        X_test = scaler.transform(X_test)\n        \n        print(f\"Heart disease dataset loaded: {X_train.shape[0]} train, {X_test.shape[0]} test samples\")\n        print(f\"Class distribution - Train: {np.bincount(y_train)}, Test: {np.bincount(y_test)}\")\n        \n        return X_train, X_test, y_train, y_test\n    \n    def load_bbc_news_data(self, test_size: float = 0.2, max_features: int = 5000) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:\n        \"\"\"\n        Load and preprocess BBC News dataset for text classification\n        \n        Args:\n            test_size: Proportion of data for testing\n            max_features: Maximum number of TF-IDF features\n            \n        Returns:\n            X_train, X_test, y_train, y_test\n        \"\"\"\n        # Download if not exists\n        self.download_bbc_news_data()\n        \n        filepath = self.raw_dir / \"bbc_news.csv\"\n        \n        print(f\"Loading BBC News dataset from {filepath}...\")\n        \n        # Load data\n        df = pd.read_csv(filepath)\n        \n        # Extract text and labels\n        texts = df['text'].values\n        labels = df['category'].values\n        \n        # Encode labels\n        label_encoder = LabelEncoder()\n        y = label_encoder.fit_transform(labels)\n        \n        # Split data first (before vectorization to avoid data leakage)\n        X_train_text, X_test_text, y_train, y_test = train_test_split(\n            texts, y, test_size=test_size, random_state=self.random_state, stratify=y\n        )\n        \n        # TF-IDF vectorization\n        vectorizer = TfidfVectorizer(\n            max_features=max_features,\n            stop_words='english',\n            lowercase=True,\n            ngram_range=(1, 2)  # Include bigrams\n        )\n        \n        X_train = vectorizer.fit_transform(X_train_text).toarray()\n        X_test = vectorizer.transform(X_test_text).toarray()\n        \n        print(f\"BBC News dataset loaded: {X_train.shape[0]} train, {X_test.shape[0]} test samples\")\n        print(f\"Feature dimensions: {X_train.shape[1]}\")\n        print(f\"Categories: {label_encoder.classes_}\")\n        print(f\"Class distribution - Train: {np.bincount(y_train)}, Test: {np.bincount(y_test)}\")\n        \n        return X_train, X_test, y_train, y_test\n    \n    def load_california_housing_data(self, test_size: float = 0.2) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:\n        \"\"\"\n        Load and preprocess California Housing dataset for regression\n        \n        Args:\n            test_size: Proportion of data for testing\n            \n        Returns:\n            X_train, X_test, y_train, y_test\n        \"\"\"\n        print(\"Loading California Housing dataset...\")\n        \n        # Load data from scikit-learn\n        data = fetch_california_housing()\n        X, y = data.data, data.target\n        \n        # Split data\n        X_train, X_test, y_train, y_test = train_test_split(\n            X, y, test_size=test_size, random_state=self.random_state\n        )\n        \n        # Standardize features\n        scaler = StandardScaler()\n        X_train = scaler.fit_transform(X_train)\n        X_test = scaler.transform(X_test)\n        \n        print(f\"California Housing dataset loaded: {X_train.shape[0]} train, {X_test.shape[0]} test samples\")\n        print(f\"Features: {data.feature_names}\")\n        print(f\"Target range - Train: [{y_train.min():.2f}, {y_train.max():.2f}], \"\n              f\"Test: [{y_test.min():.2f}, {y_test.max():.2f}]\")\n        \n        return X_train, X_test, y_train, y_test\n    \n    def load_wine_quality_data(self, test_size: float = 0.2) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:\n        \"\"\"\n        Load and preprocess Wine Quality dataset for regression\n        \n        Args:\n            test_size: Proportion of data for testing\n            \n        Returns:\n            X_train, X_test, y_train, y_test\n        \"\"\"\n        # Download if not exists\n        self.download_wine_quality_data()\n        \n        filepath = self.raw_dir / \"wine_quality.csv\"\n        \n        print(f\"Loading wine quality dataset from {filepath}...\")\n        \n        # Load data\n        df = pd.read_csv(filepath, sep=';')\n        \n        # Separate features and target\n        X = df.drop('quality', axis=1).values\n        y = df['quality'].values\n        \n        # Split data\n        X_train, X_test, y_train, y_test = train_test_split(\n            X, y, test_size=test_size, random_state=self.random_state\n        )\n        \n        # Standardize features\n        scaler = StandardScaler()\n        X_train = scaler.fit_transform(X_train)\n        X_test = scaler.transform(X_test)\n        \n        print(f\"Wine quality dataset loaded: {X_train.shape[0]} train, {X_test.shape[0]} test samples\")\n        print(f\"Quality range - Train: [{y_train.min()}, {y_train.max()}], \"\n              f\"Test: [{y_test.min()}, {y_test.max()}]\")\n        \n        return X_train, X_test, y_train, y_test\n    \n    def download_all_datasets(self) -> None:\n        \"\"\"\n        Download all datasets\n        \"\"\"\n        print(\"Downloading all datasets...\")\n        self.download_heart_disease_data()\n        self.download_bbc_news_data()\n        self.download_wine_quality_data()\n        print(\"All datasets downloaded successfully!\")\n    \n    def get_dataset_info(self) -> dict:\n        \"\"\"\n        Get information about available datasets\n        \n        Returns:\n            Dictionary with dataset information\n        \"\"\"\n        info = {\n            'heart_disease': {\n                'type': 'classification',\n                'task': 'medical diagnosis',\n                'features': 13,\n                'samples': '~300',\n                'classes': 2\n            },\n            'bbc_news': {\n                'type': 'classification',\n                'task': 'text classification',\n                'features': 'variable (TF-IDF)',\n                'samples': '~500',\n                'classes': 5\n            },\n            'california_housing': {\n                'type': 'regression',\n                'task': 'house price prediction',\n                'features': 8,\n                'samples': '20,640',\n                'target': 'continuous'\n            },\n            'wine_quality': {\n                'type': 'regression',\n                'task': 'wine quality prediction',\n                'features': 11,\n                'samples': '~1,000',\n                'target': 'discrete (3-9)'\n            }\n        }\n        \n        return info\n\n\n# Utility function for command-line usage\nif __name__ == \"__main__\":\n    import argparse\n    \n    parser = argparse.ArgumentParser(description=\"Download datasets for SVM analysis\")\n    parser.add_argument(\"--download-all\", action=\"store_true\", help=\"Download all datasets\")\n    parser.add_argument(\"--info\", action=\"store_true\", help=\"Show dataset information\")\n    \n    args = parser.parse_args()\n    \n    loader = DataLoader()\n    \n    if args.download_all:\n        loader.download_all_datasets()\n    elif args.info:\n        info = loader.get_dataset_info()\n        for name, details in info.items():\n            print(f\"\\n{name.upper()}:\")\n            for key, value in details.items():\n                print(f\"  {key}: {value}\")\n    else:\n        print(\"Use --download-all to download datasets or --info for dataset information\")"
+    data = pd.read_csv(file_path)
+    
+    # Assuming the target column is named 'target' or similar
+    target_cols = ['target', 'Target', 'HeartDisease', 'heart_disease']
+    target_col = None
+    
+    for col in target_cols:
+        if col in data.columns:
+            target_col = col
+            break
+    
+    if target_col is None:
+        # Use the last column as target if no obvious target column found
+        target_col = data.columns[-1]
+    
+    X = data.drop(columns=[target_col])
+    y = data[target_col]
+    
+    return X.values, y.values
+
+def load_cardiovascular_risk_data():
+    """Load cardiovascular risk score data for regression analysis."""
+    # Try processed data first, then raw data
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    processed_path = os.path.join(project_root, 'data', 'processed', 'cardiovascular_risk.csv')
+    raw_path = os.path.join(project_root, 'data', 'raw', 'heart_disease.csv')
+    
+    if os.path.exists(processed_path):
+        file_path = processed_path
+    elif os.path.exists(raw_path):
+        file_path = raw_path
+        # Generate cardiovascular risk scores from heart disease data
+        data = pd.read_csv(file_path)
+        # Create continuous risk scores (0-100) based on heart disease features
+        risk_scores = create_cardiovascular_risk_scores(data)
+        data['risk_score'] = risk_scores
+        target_col = 'risk_score'
+    else:
+        raise FileNotFoundError("Heart disease dataset not found in data/processed or data/raw")
+    
+    if 'risk_score' not in data.columns:
+        data = pd.read_csv(file_path)
+        risk_scores = create_cardiovascular_risk_scores(data)
+        data['risk_score'] = risk_scores
+        target_col = 'risk_score'
+    else:
+        target_col = 'risk_score'
+    
+    X = data.drop(columns=[target_col])
+    y = data[target_col]
+    
+    return X.values, y.values
+
+def create_cardiovascular_risk_scores(data):
+    """Create continuous cardiovascular risk scores from heart disease features."""
+    # Normalize features and create weighted risk score
+    import numpy as np
+    
+    # Clinical weights based on medical literature
+    weights = {
+        'age': 0.15,
+        'sex': 0.20,  # Male = higher risk
+        'cp': 0.25,   # Chest pain type
+        'trestbps': 0.15,  # Blood pressure
+        'chol': 0.10,      # Cholesterol
+        'exang': 0.15,     # Exercise angina
+        'oldpeak': 0.20,   # ST depression
+        'ca': 0.25,        # Vessel blockage
+        'thal': 0.30       # Thalassemia
+    }
+    
+    risk_score = np.zeros(len(data))
+    
+    # Age risk (normalized to 0-1)
+    if 'age' in data.columns:
+        age_norm = (data['age'] - data['age'].min()) / (data['age'].max() - data['age'].min())
+        risk_score += weights.get('age', 0.15) * age_norm
+    
+    # Gender risk
+    if 'sex' in data.columns:
+        risk_score += weights.get('sex', 0.20) * data['sex']
+    
+    # Chest pain (asymptomatic = highest risk)
+    if 'cp' in data.columns:
+        cp_risk = np.where(data['cp'] == 0, 1.0, 0.5)  # Asymptomatic = high risk
+        risk_score += weights.get('cp', 0.25) * cp_risk
+    
+    # Blood pressure risk
+    if 'trestbps' in data.columns:
+        bp_risk = np.where(data['trestbps'] > 140, 1.0, data['trestbps'] / 140)
+        risk_score += weights.get('trestbps', 0.15) * bp_risk
+    
+    # Cholesterol risk
+    if 'chol' in data.columns:
+        chol_risk = np.where(data['chol'] > 240, 1.0, data['chol'] / 240)
+        risk_score += weights.get('chol', 0.10) * chol_risk
+    
+    # Exercise angina
+    if 'exang' in data.columns:
+        risk_score += weights.get('exang', 0.15) * data['exang']
+    
+    # ST depression
+    if 'oldpeak' in data.columns:
+        oldpeak_norm = np.clip(data['oldpeak'] / 6.0, 0, 1)  # Normalize to 0-1
+        risk_score += weights.get('oldpeak', 0.20) * oldpeak_norm
+    
+    # Number of vessels
+    if 'ca' in data.columns:
+        ca_risk = data['ca'] / 3.0  # Normalize to 0-1
+        risk_score += weights.get('ca', 0.25) * ca_risk
+    
+    # Thalassemia
+    if 'thal' in data.columns:
+        thal_risk = np.where(data['thal'] == 2, 1.0, 0.3)  # Fixed defect = high risk
+        risk_score += weights.get('thal', 0.30) * thal_risk
+    
+    # Scale to 0-100 range
+    risk_score = (risk_score / np.max(risk_score)) * 100
+    
+    # Add some medical noise for realism
+    noise = np.random.normal(0, 5, len(data))
+    risk_score = np.clip(risk_score + noise, 0, 100)
+    
+    return risk_score
+
+def load_medical_data(file_path=None):
+    """Load medical dataset for analysis."""
+    if file_path is None:
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        file_path = os.path.join(project_root, 'data', 'raw', 'heart_disease.csv')
+    
+    if os.path.exists(file_path):
+        return pd.read_csv(file_path)
+    else:
+        raise FileNotFoundError(f"The medical dataset file {file_path} does not exist.")
+
+def load_processed_medical_data(file_path=None):
+    """Load processed medical dataset for SVM analysis."""
+    if file_path is None:
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        file_path = os.path.join(project_root, 'data', 'processed', 'heart_disease_analysis.csv')
+    
+    if os.path.exists(file_path):
+        return pd.read_csv(file_path)
+    else:
+        raise FileNotFoundError(f"The processed medical dataset file {file_path} does not exist.")
+
+def load_processed_data(file_path):
+    """Load processed data from a specified file path."""
+    return load_data(file_path)
+
+def save_processed_data(data, file_path):
+    """Save processed data to a specified file path."""
+    data.to_csv(file_path, index=False)

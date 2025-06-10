@@ -92,7 +92,7 @@ Loss = |y - f(x)| - ε otherwise
 ## 📁 Project Structure
 
 ```
-SVM-for-classification-and-regression/
+svm-classification-regression/
 │
 ├── 📊 data/
 │   ├── raw/                    # Raw datasets
@@ -159,8 +159,8 @@ SVM-for-classification-and-regression/
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/MDHaggai/ssification-and-regression.git
-cd SVM-for-classification-and-regression
+git clone https://github.com/yourusername/svm-classification-regression.git
+cd svm-classification-regression
 ```
 
 2. **Create virtual environment**

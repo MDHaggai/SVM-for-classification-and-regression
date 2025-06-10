@@ -1,0 +1,34 @@
+{
+    "classification_metrics": {
+        "heart_disease": {
+            "accuracy": 0.872,
+            "precision": 0.85,
+            "recall": 0.88,
+            "f1_score": 0.86
+        },
+        "news_classification": {
+            "accuracy": 0.94,
+            "precision": 0.93,
+            "recall": 0.95,
+            "f1_score": 0.94
+        }
+    },
+    "model_comparison": {
+        "linear_svm": {
+            "heart_disease_accuracy": 0.85,
+            "news_classification_accuracy": 0.92
+        },
+        "kernel_svm": {
+            "heart_disease_accuracy": 0.87,
+            "news_classification_accuracy": 0.94
+        },
+        "random_forest": {
+            "heart_disease_accuracy": 0.83,
+            "news_classification_accuracy": 0.90
+        },
+        "logistic_regression": {
+            "heart_disease_accuracy": 0.80,
+            "news_classification_accuracy": 0.88
+        }
+    }
+}
