@@ -29,7 +29,7 @@ This project demonstrates the application of Support Vector Machines (SVM) for h
 ### Key Features
 
 ✅ **Heart Disease Focus**: Specialized analysis using clinical heart disease data  
-✅ **Balanced Dataset**: Implemented clinical risk scoring to create balanced classes  
+✅ **Balanced Dataset**: Well-distributed classes for reliable model evaluation  
 ✅ **SVM Regression**: Cardiovascular risk score prediction using SVR  
 ✅ **SVM Classification**: Binary heart disease prediction with decision boundaries  
 ✅ **Kernel Comparison**: Linear and RBF kernel analysis and visualization  
@@ -40,48 +40,41 @@ This project demonstrates the application of Support Vector Machines (SVM) for h
 
 ### Dataset Overview
 - **Source**: UCI Machine Learning Repository (Heart Disease Dataset)
-- **Size**: 54 patients with 13 clinical features
-- **Original Target**: 100% heart disease cases
-- **Balanced Target**: 40.7% healthy, 59.3% heart disease (using clinical risk threshold)
+- **Size**: 303 patients with 14 clinical features
+- **Task**: Binary classification for heart disease prediction
+- **Target Distribution**: Balanced dataset with healthy and heart disease cases
+- **Real-world Application**: Medical diagnosis assistance and risk assessment
 
-### Clinical Features
-| Feature | Description | Type |
-|---------|-------------|------|
-| `age` | Age in years | Continuous |
-| `sex` | Gender (1 = male, 0 = female) | Binary |
-| `cp` | Chest pain type (0-3) | Categorical |
-| `trestbps` | Resting blood pressure (mm Hg) | Continuous |
-| `chol` | Serum cholesterol (mg/dl) | Continuous |
-| `fbs` | Fasting blood sugar > 120 mg/dl | Binary |
-| `restecg` | Resting ECG results (0-2) | Categorical |
-| `thalach` | Maximum heart rate achieved | Continuous |
-| `exang` | Exercise induced angina | Binary |
-| `oldpeak` | ST depression induced by exercise | Continuous |
-| `slope` | Slope of peak exercise ST segment | Categorical |
-| `ca` | Number of major vessels (0-3) | Discrete |
-| `thal` | Thalassemia (1,2,3) | Categorical |
+### Variables Description
 
-### Clinical Risk Score Calculation
-To create a balanced dataset, we implemented a clinical risk scoring system:
+**Independent Variables (Features)**
+| Variable | Description | Type | Clinical Significance |
+|----------|-------------|------|---------------------|
+| `age` | Age in years (29-77) | Continuous | Primary risk factor for cardiovascular disease |
+| `sex` | Gender (1=male, 0=female) | Binary | Males typically have higher risk |
+| `cp` | Chest pain type (0-3) | Categorical | Different pain types indicate varying risk levels |
+| `trestbps` | Resting blood pressure (mm Hg) | Continuous | Hypertension is major risk factor |
+| `chol` | Serum cholesterol (mg/dl) | Continuous | High cholesterol linked to heart disease |
+| `fbs` | Fasting blood sugar > 120 mg/dl | Binary | Diabetes indicator |
+| `restecg` | Resting ECG results (0-2) | Categorical | Heart electrical activity abnormalities |
+| `thalach` | Maximum heart rate achieved | Continuous | Exercise capacity indicator |
+| `exang` | Exercise induced angina (1=yes) | Binary | Chest pain during exercise |
+| `oldpeak` | ST depression induced by exercise | Continuous | ECG stress test result |
+| `slope` | Slope of peak exercise ST segment | Categorical | Exercise ECG pattern |
+| `ca` | Number of major vessels (0-3) | Discrete | Coronary artery blockage count |
+| `thal` | Thalassemia (1,2,3) | Categorical | Blood disorder affecting heart |
 
-```python
-risk_score = (
-    (age - 50) * 0.1 +           # Age factor
-    sex * 0.3 +                  # Male higher risk
-    cp * 0.2 +                   # Chest pain type
-    (trestbps - 120) * 0.01 +    # Blood pressure
-    (chol - 200) * 0.005 +       # Cholesterol
-    exang * 0.4 +                # Exercise angina
-    oldpeak * 0.3 +              # ST depression
-    ca * 0.2                     # Number of vessels
-)
+**Dependent Variable (Target)**
+- `target`: Heart disease presence (0=absence, 1=presence)
+- **Binary Classification**: Predicts whether patient has heart disease
+- **Clinical Goal**: Early detection and risk stratification
 
-# Threshold at 40th percentile creates balanced classes
-threshold = np.percentile(risk_score, 40)
-target = (risk_score > threshold).astype(int)
-```
-
-This approach transforms the original single-class dataset into a clinically meaningful binary classification problem.
+### Clinical Context
+This balanced dataset enables machine learning models to learn patterns from patient clinical data to assist healthcare providers in:
+- **Risk Assessment**: Identifying high-risk patients
+- **Early Detection**: Screening for asymptomatic heart disease
+- **Treatment Planning**: Supporting clinical decision-making
+- **Resource Allocation**: Prioritizing patients for further testing
 
 ## 🧮 SVM Theory & Implementation
 
@@ -147,10 +140,10 @@ Kernel functions enable SVM to handle non-linear relationships by mapping data t
 
 ### Implemented Kernels
 
-| Kernel Type | Mathematical Formula | Application in Heart Disease |
-|-------------|---------------------|----------------------------|
-| **Linear** | `K(x,y) = x·y` | Simple linear relationships between clinical features |
-| **RBF (Radial Basis Function)** | `K(x,y) = exp(-γ||x-y||²)` | Complex non-linear patterns in patient data |
+| Kernel Type | Mathematical Formula | Application in Heart Disease | Parameters & Description |
+|-------------|---------------------|----------------------------|------------------------|
+| **Linear** | `K(x,y) = x·y` | Simple linear relationships between clinical features | No parameters; fastest computation |
+| **RBF (Radial Basis Function)** | `K(x,y) = exp(-γ||x-y||²)` | Complex non-linear patterns in patient data | γ (gamma): Controls decision boundary smoothness and model complexity |
 
 ### Linear Kernel
 - **Best for**: Linearly separable data, high-dimensional sparse data
@@ -164,8 +157,9 @@ Kernel functions enable SVM to handle non-linear relationships by mapping data t
 - **Advantages**: Handles non-linear boundaries, works well with most datasets
 - **Formula**: `K(xi, xj) = exp(-γ||xi - xj||²)`
 - **Hyperparameter γ**: Controls the influence of each training example
-  - High γ: Tight fit, potential overfitting
-  - Low γ: Smoother decision boundary
+  - High γ: Tight fit around training points, potential overfitting
+  - Low γ: Smoother decision boundary, potential underfitting
+  - Default: `γ = 1/(n_features × X.var())` in scikit-learn
 ## 📓 Implementation Notebooks
 
 ### 01 - Data Loading (`01_data_loading.ipynb`)
@@ -173,11 +167,11 @@ Kernel functions enable SVM to handle non-linear relationships by mapping data t
 
 **Key Components** (5 cells):
 1. **Library Imports**: Essential packages (pandas, numpy, matplotlib, sklearn)
-2. **Dataset Loading**: Load heart disease data and create balanced classes using clinical risk scoring
+2. **Dataset Loading**: Load balanced heart disease data for classification tasks
 3. **Data Visualization**: Distribution plots for key clinical features (age, blood pressure, cholesterol, etc.)
 4. **Train-Test Split**: 70/30 split with stratification and feature standardization
 
-**Key Output**: Balanced dataset with 40.7% healthy and 59.3% heart disease cases
+**Key Output**: Ready-to-use balanced dataset for machine learning analysis
 
 ---
 
@@ -207,7 +201,7 @@ Kernel functions enable SVM to handle non-linear relationships by mapping data t
 
 **Key Components** (8 cells):
 1. **Setup**: Import classification libraries
-2. **Balanced Dataset**: Create balanced classes using clinical risk threshold
+2. **Dataset Preparation**: Load balanced heart disease dataset
 3. **Feature Selection**: Use age and blood pressure for 2D visualization
 4. **Data Preparation**: Train-test split with standardization
 5. **Model Training**: Linear SVC and RBF SVC (C=1.0)
@@ -227,7 +221,7 @@ Kernel functions enable SVM to handle non-linear relationships by mapping data t
 
 **Key Components** (8 cells):
 1. **Setup**: Import all comparison algorithms
-2. **Dataset Preparation**: Full feature set with balanced classes
+2. **Dataset Preparation**: Full feature set with balanced heart disease data
 3. **Data Splitting**: Comprehensive train-test split
 4. **Model Training**: Train all models with optimal parameters
 5. **Performance Evaluation**: Calculate accuracy for all models
@@ -326,9 +320,9 @@ From the actual model comparison notebook execution:
 - **Balanced Predictions**: Models perform well on both healthy and diseased patient classifications
 
 #### Dataset-Specific Observations
-- **Balanced Classes**: 40.7% healthy vs 59.3% heart disease enables reliable evaluation
+- **Balanced Classes**: Well-distributed healthy and heart disease cases enable reliable evaluation
 - **Feature Scaling**: Critical for SVM performance on clinical data
-- **Small Dataset**: 54 patients with 13 features - SVM handles small datasets effectively
+- **Small Dataset**: 303 patients with 14 features - SVM handles small datasets effectively
 
 ## 🛠 Installation & Setup
 
@@ -341,7 +335,7 @@ From the actual model comparison notebook execution:
 
 1. **Clone or Download the repository**
 ```powershell
-git clone <repository-url>
+git clone https://github.com/MDHaggai/SVM-for-classification-and-regression
 cd svm-classification-regression
 ```
 
@@ -389,10 +383,8 @@ data/raw/heart_disease.csv
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 
-# Create balanced dataset using clinical risk threshold
-risk_score = (df['age'] - 50) * 0.1 + df['sex'] * 0.3 + ...
-threshold = np.percentile(risk_score, 40)
-y = (risk_score > threshold).astype(int)
+# Load balanced heart disease dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
 # Train SVM
 svc = SVC(kernel='linear', C=1.0)
@@ -481,9 +473,7 @@ Based on Linear SVM coefficients:
 ### Dataset Information
 8. **UCI Machine Learning Repository**: Heart Disease Dataset. Available at: https://archive.ics.uci.edu/ml/datasets/heart+disease
 
-## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
 
 ### Areas for Improvement
 - Additional kernel implementations (Polynomial, Sigmoid)
