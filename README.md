@@ -480,7 +480,52 @@ Based on Linear SVM coefficients:
 - Cross-validation and hyperparameter tuning examples
 - More comprehensive medical interpretation
 - Integration with other heart disease datasets
-- Real-time prediction web interface
+
+## 🖥️ Heart Disease Prediction GUI
+
+This project includes a beautiful graphical user interface (GUI) application for real-time heart disease prediction using the trained SVM model.
+
+### GUI Features
+- **User-Friendly Interface**: Beautiful, intuitive design with clinical data input forms
+- **Real-Time Predictions**: Instant heart disease risk assessment
+- **Risk Factor Analysis**: Detailed breakdown of patient risk factors
+- **Clinical Recommendations**: Actionable advice based on prediction results
+- **Model Information**: Displays confidence scores and prediction details
+
+### Running the GUI
+
+**Option 1: Double-click batch file**
+```
+run_gui_fixed.bat
+```
+
+**Option 2: Command line**
+```powershell
+cd svm-classification-regression
+python heart_disease_gui_fixed.py
+```
+
+### GUI Input Fields
+- **Age**: Patient age in years (29-77)
+- **Sex**: Male/Female selection
+- **Chest Pain Type**: 4 types of chest pain classification
+- **Resting Blood Pressure**: Blood pressure in mmHg
+- **Cholesterol**: Serum cholesterol in mg/dl
+- **Fasting Blood Sugar**: Diabetes indicator (>120 mg/dl)
+- **Resting ECG**: Electrocardiogram results
+- **Max Heart Rate**: Maximum heart rate achieved
+- **Exercise Induced Angina**: Chest pain during exercise
+- **ST Depression**: Exercise stress test result
+- **ST Slope**: Slope pattern during exercise
+- **Major Vessels**: Number of coronary arteries with blockage (0-3)
+- **Thalassemia**: Blood disorder classification
+
+### Prediction Output
+- **Risk Classification**: High Risk or Low Risk determination
+- **Confidence Scores**: Percentage probability for each outcome
+- **Risk Factors Analysis**: Identification of present cardiovascular risk factors
+- **Clinical Recommendations**: Personalized advice based on results
+- **Medical Disclaimer**: Important notice about professional medical consultation
 
 ## 📄 License
 

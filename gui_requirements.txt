@@ -1,13 +1,3 @@
-numpy
-pandas
-scikit-learn
-matplotlib
-seaborn
-jupyter
-pytest
-flake8
-black
-
 # GUI Application Requirements
 # Core machine learning libraries
 pandas>=1.3.0
